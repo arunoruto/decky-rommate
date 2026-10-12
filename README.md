@@ -21,7 +21,9 @@ Quick Access panel where you can:
 - see every platform on your RomM server and how many of its games are on the device,
 - download single games or everything you're missing, with a Steam-style progress bar,
 - cancel downloads (they resume next time) and retry failed ones,
-- connect to your server with the on-screen keyboard.
+- connect to your server with the on-screen keyboard,
+- open the full rommate TUI as a Steam shortcut with its own artwork (capsule, wide capsule, hero, logo and icon);
+  the controller works with Steam's default layout.
 
 The plugin is **universal**: it bundles rommate for both x86-64 (Steam Deck, Steam Machine) and ARM64 (handhelds
 running [Armada](https://armadaos.dev)) and picks the right one at runtime. It shares its configuration with the

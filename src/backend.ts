@@ -63,6 +63,17 @@ export interface Launch {
   appid: number | null;
 }
 
+export interface Artwork {
+  capsule: string;
+  wide_capsule: string;
+  hero: string;
+  logo: string;
+  icon_path: string;
+  applied_to: number | null;
+}
+
+export const getArtwork = callable<[], Result<Artwork>>("get_artwork");
+export const setArtworkApplied = callable<[appid: number], Result<null>>("set_artwork_applied");
 export const getLaunch = callable<[], Result<Launch>>("get_launch");
 export const setShortcutAppid = callable<[appid: number], Result<null>>("set_shortcut_appid");
 export const getConfig = callable<[], Result<Config>>("get_config");

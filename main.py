@@ -12,6 +12,7 @@ sets it up everywhere.
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import os
 import platform
@@ -354,6 +355,28 @@ class Plugin:
                     }
                 )
         return fail(RommateError("no terminal found (install Konsole or another terminal)"))
+
+    async def get_artwork(self) -> dict:
+        """Steam artwork for the shortcut as base64 PNGs, and whether it was
+        already applied to the current shortcut."""
+        folder = os.path.join(decky.DECKY_PLUGIN_DIR, "artwork")
+        out = {}
+        try:
+            for key in ("capsule", "wide_capsule", "hero", "logo"):
+                with open(os.path.join(folder, key + ".png"), "rb") as f:
+                    out[key] = base64.b64encode(f.read()).decode("ascii")
+        except OSError as e:
+            return fail(e)
+        settings = self._settings()
+        out["icon_path"] = os.path.join(folder, "icon.png")
+        out["applied_to"] = settings.get("artwork_appid")
+        return ok(out)
+
+    async def set_artwork_applied(self, appid: int) -> dict:
+        settings = self._settings()
+        settings["artwork_appid"] = appid
+        self._save_settings(settings)
+        return ok()
 
     async def set_shortcut_appid(self, appid: int) -> dict:
         settings = self._settings()
