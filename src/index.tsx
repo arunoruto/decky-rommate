@@ -12,11 +12,13 @@ import {
   QueueItem,
   getConfig,
   getQueue,
+  onGameExit,
 } from "./backend";
 import { Downloads } from "./components/Downloads";
 import { Games } from "./components/Games";
 import { RommateIcon } from "./components/Icon";
 import { Platforms } from "./components/Platforms";
+import { Saves, toastAutoSync } from "./components/Saves";
 import { Setup } from "./components/Setup";
 
 const EMPTY_QUEUE: Queue = { current: null, pending: [], failed: [], finished: [] };
@@ -91,6 +93,7 @@ function Content() {
         </PanelSectionRow>
       </PanelSection>
       <Downloads queue={queue} onQueue={setQueue} />
+      <Saves reloadKey={reloadKey} />
       {view.kind === "games" ? (
         <Games
           platform={view.platform}
@@ -132,6 +135,15 @@ export default definePlugin(() => {
     toaster.toast({ title: "rommate: download failed", body: `${item.name}: ${item.error ?? ""}` }),
   );
 
+  // Sync saves whenever a game closes; the backend skips rommate itself and
+  // honours the "Sync when a game closes" switch.
+  const lifetime = SteamClient.GameSessions.RegisterForAppLifetimeNotifications((n) => {
+    if (n.bRunning) return;
+    onGameExit(n.unAppID).then((res) => {
+      if (res.ok) toastAutoSync(res.data);
+    });
+  });
+
   return {
     name: "rommate",
     titleView: (
@@ -145,6 +157,7 @@ export default definePlugin(() => {
     onDismount() {
       removeEventListener(DONE_EVENT, onDone);
       removeEventListener(FAILED_EVENT, onFailed);
+      lifetime.unregister();
     },
   };
 });

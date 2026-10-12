@@ -256,6 +256,8 @@ class Plugin:
         self.finished: list[dict] = []
         self.wakeup = asyncio.Event()
         self.worker = asyncio.get_event_loop().create_task(self._worker())
+        self.save_lock = asyncio.Lock()
+        self.save_syncing = False
         decky.logger.info("rommate plugin started (reported %s, native %s)", platform.machine(), native_arch())
 
     async def _unload(self):
@@ -328,6 +330,115 @@ class Plugin:
             return ok()
         except Exception as e:  # noqa: BLE001
             return fail(e)
+
+    # ── save sync ────────────────────────────────────────────────────────────
+
+    async def get_saves(self) -> dict:
+        """Local save state of every downloaded game (no network), the last
+        sync and the plugin's save settings."""
+        try:
+            statuses = await run_json("saves")
+        except Exception as e:  # noqa: BLE001
+            return fail(e)
+        return ok({"games": statuses or [], **self._save_state()})
+
+    async def sync_saves(self, reason: str = "manual") -> dict:
+        """Sync all saves with RomM. Returns the sync state; a sync that is
+        already running is not started twice."""
+        if self.save_lock.locked():
+            return ok(self._save_state())
+        async with self.save_lock:
+            self.save_syncing = True
+            await decky.emit("rommate_saves", self._save_state())
+            last = await self._run_save_sync()
+            last["reason"] = reason
+            settings = self._settings()
+            settings["last_save_sync"] = last
+            self._save_settings(settings)
+            self.save_syncing = False
+            state = self._save_state()
+            await decky.emit("rommate_saves", state)
+            return ok(state)
+
+    async def on_game_exit(self, appid: int) -> dict:
+        """Called by the frontend whenever a game closes. Syncs saves unless
+        that is turned off or the game was rommate itself (the TUI syncs on
+        quit). Returns the sync state, or None when nothing was synced."""
+        settings = self._settings()
+        if not settings.get("sync_on_exit", True) or appid == settings.get("shortcut_appid"):
+            return ok(None)
+        # Give the emulator a moment in case it is still flushing its save.
+        await asyncio.sleep(2)
+        return await self.sync_saves("game_exit")
+
+    async def set_sync_on_exit(self, enabled: bool) -> dict:
+        settings = self._settings()
+        settings["sync_on_exit"] = bool(enabled)
+        self._save_settings(settings)
+        return ok(self._save_state())
+
+    async def resolve_save(self, rom_id: int, keep: str) -> dict:
+        """Settle a conflict by keeping the device's ("local") or RomM's
+        ("server") save."""
+        if keep not in ("local", "server"):
+            return fail(RommateError(f"keep must be local or server, not {keep!r}"))
+        try:
+            async with self.save_lock:
+                await run("saves", "resolve", str(rom_id), "--keep", keep, timeout=300)
+        except Exception as e:  # noqa: BLE001
+            return fail(e)
+        return await self.get_saves()
+
+    def _save_state(self) -> dict:
+        settings = self._settings()
+        return {
+            "syncing": self.save_syncing,
+            "last": settings.get("last_save_sync"),
+            "sync_on_exit": settings.get("sync_on_exit", True),
+        }
+
+    async def _run_save_sync(self) -> dict:
+        """Run `rommate saves sync --json`. Its events are JSON lines; the last
+        one holds the result. Failed saves make rommate exit non-zero, but the
+        result is still printed, so stdout is parsed either way."""
+        last: dict = {"at": time.time(), "result": None, "conflicts": [], "errors": [], "error": ""}
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                binary_path(),
+                "saves",
+                "sync",
+                "--json",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=rommate_env(),
+            )
+            try:
+                out, err = await asyncio.wait_for(proc.communicate(), 600)
+            except asyncio.TimeoutError:
+                proc.kill()
+                raise RommateError("save sync timed out") from None
+        except Exception as e:  # noqa: BLE001
+            last["error"] = str(e)
+            decky.logger.warning("save sync: %s", e)
+            return last
+        for line in out.decode(errors="replace").splitlines():
+            try:
+                ev = json.loads(line)
+            except ValueError:
+                continue
+            if ev.get("event") == "result":
+                last["result"] = ev.get("result")
+            elif ev.get("action") == "conflict":
+                last["conflicts"].append({"rom_id": ev.get("rom_id"), "name": ev.get("name", "")})
+            elif ev.get("action") == "error":
+                last["errors"].append({"name": ev.get("name", ""), "detail": ev.get("detail", "")})
+        if last["result"] is None:
+            msg = err.decode(errors="replace").strip().removeprefix("rommate: ")
+            last["error"] = msg or f"rommate exited with {proc.returncode}"
+            decky.logger.warning("save sync: %s", last["error"])
+        else:
+            decky.logger.info("save sync: %s", last["result"])
+        return last
 
     # ── launching the TUI ────────────────────────────────────────────────────
 

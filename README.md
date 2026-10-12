@@ -21,6 +21,8 @@ Quick Access panel where you can:
 - see every platform on your RomM server and how many of its games are on the device,
 - download single games or everything you're missing, with a Steam-style progress bar,
 - cancel downloads (they resume next time) and retry failed ones,
+- sync emulator saves with RomM: automatically whenever a game closes, or with a button, and settle conflicts by
+  choosing which save to keep,
 - connect to your server with the on-screen keyboard,
 - open the full rommate TUI as a Steam shortcut with its own artwork (capsule, wide capsule, hero, logo and icon);
   the controller works with Steam's default layout.
@@ -44,7 +46,8 @@ Quick Access panel (React, @decky/ui)  ⇄  main.py (Decky backend)  →  rommat
 ```
 
 The frontend calls the Python backend, which runs the bundled `rommate` binary with `--json` and turns its progress
-events into Decky events. All the real work (folder mapping, resumable downloads, download state) happens in
+events into Decky events. To sync saves when a game closes, the frontend listens to Steam's game lifetime
+notifications and asks the backend to run `rommate saves sync`. All the real work (folder mapping, resumable downloads, download state) happens in
 rommate itself. The binaries come from a pinned [rommate release](https://github.com/arunoruto/rommate/releases)
 via `remote_binary` in `package.json`, with SHA-256 checksums.
 

@@ -94,3 +94,50 @@ export const dismiss = callable<[romId: number], Queue>("dismiss");
 export const QUEUE_EVENT = "rommate_queue";
 export const DONE_EVENT = "rommate_done";
 export const FAILED_EVENT = "rommate_failed";
+
+export interface SaveStatus {
+  rom_id: number;
+  name: string;
+  platform: string;
+  emulator?: string;
+  path?: string; // empty: no local save yet
+  conflict: boolean;
+  problem?: string;
+  synced_at?: string;
+  server_updated_at?: string;
+}
+
+export interface SaveSyncResult {
+  uploaded: number;
+  downloaded: number;
+  conflicts: number;
+  in_sync: number;
+  failed: number;
+}
+
+export interface SaveSync {
+  at: number; // unix seconds
+  reason: "manual" | "game_exit";
+  result: SaveSyncResult | null; // null: the sync did not run, see error
+  conflicts: { rom_id: number; name: string }[];
+  errors: { name: string; detail: string }[];
+  error: string;
+}
+
+export interface SaveState {
+  syncing: boolean;
+  last: SaveSync | null;
+  sync_on_exit: boolean;
+}
+
+export interface Saves extends SaveState {
+  games: SaveStatus[];
+}
+
+export const getSaves = callable<[], Result<Saves>>("get_saves");
+export const syncSaves = callable<[reason: string], Result<SaveState>>("sync_saves");
+export const onGameExit = callable<[appid: number], Result<SaveState | null>>("on_game_exit");
+export const setSyncOnExit = callable<[enabled: boolean], Result<SaveState>>("set_sync_on_exit");
+export const resolveSave = callable<[romId: number, keep: "local" | "server"], Result<Saves>>("resolve_save");
+
+export const SAVES_EVENT = "rommate_saves";
