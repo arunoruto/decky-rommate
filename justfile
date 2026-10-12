@@ -22,7 +22,7 @@ check: install
     python3 -m py_compile main.py
     {{ if `command -v ruff || true` != "" { "ruff" } else { "nix run nixpkgs#ruff --" } }} check --select E,F,B,UP --ignore E501,UP041 --target-version py39 main.py
 
-# Build the installable plugin zip with the Decky CLI (needs Docker) → out/rommate.zip
+# Build the installable plugin zip with the Decky CLI (needs Docker) → out/decky-rommate.zip
 zip: build
     #!/usr/bin/env bash
     set -euo pipefail
@@ -43,8 +43,8 @@ zip: build
 
 # Copy the built plugin to a device (default: the Armada handheld) and restart Decky
 deploy host="armada@armada.local": zip
-    scp out/rommate.zip {{ host }}:/tmp/rommate.zip
-    ssh -t {{ host }} 'sudo rm -rf ~/homebrew/plugins/rommate && sudo unzip -q -o /tmp/rommate.zip -d ~/homebrew/plugins && sudo systemctl restart plugin_loader'
+    scp out/decky-rommate.zip {{ host }}:/tmp/decky-rommate.zip
+    ssh -t {{ host }} 'sudo rm -rf ~/homebrew/plugins/decky-rommate && sudo unzip -q -o /tmp/decky-rommate.zip -d ~/homebrew/plugins && sudo systemctl restart plugin_loader'
 
 # Remove build output
 clean:

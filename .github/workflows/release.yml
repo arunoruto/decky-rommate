@@ -51,6 +51,7 @@ jobs:
           chmod +x cli/decky
           sudo cli/decky plugin build -b -o out -s directory .
           sudo chown -R "$(whoami)" out
+          # Stable asset name, so releases/latest/download/rommate.zip always works.
           mv out/*.zip out/rommate.zip
 
       - name: Publish release

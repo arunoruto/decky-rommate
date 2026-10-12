@@ -55,7 +55,7 @@ just and TypeScript language servers). With [nix-direnv](https://github.com/nix-
 ```sh
 just build    # frontend → dist/index.js
 just check    # type-check the frontend, lint the backend
-just zip      # installable plugin → out/rommate.zip (Decky CLI, needs Docker)
+just zip      # installable plugin → out/decky-rommate.zip (Decky CLI, needs Docker)
 just deploy   # build, copy to armada@armada.local and restart Decky (or: just deploy user@host)
 ```
 
