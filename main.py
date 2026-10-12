@@ -27,14 +27,101 @@ import decky
 HISTORY = 20
 
 # Terminals that can host the TUI, with arguments for a full-screen window
-# running one command. Konsole ships with SteamOS and Armada.
+# without any terminal chrome, running one command. Konsole ships with
+# SteamOS and Armada; its profile tweaks only apply to this window.
+KONSOLE_PROFILE = [
+    "ScrollBarPosition=2",  # hidden
+    "TerminalMargin=6",
+    "TerminalCenter=true",
+    "BellMode=3",  # no bell
+    "BlinkingCursorEnabled=false",
+    "Font=Monospace,15",
+]
 TERMINALS = [
-    ("konsole", ["--fullscreen", "--hide-menubar", "--hide-tabbar", "-p", "Font=Monospace,15", "-e"]),
+    (
+        "konsole",
+        ["--fullscreen", "--hide-menubar", "--hide-toolbars", "--hide-tabbar", "--notransparency"]
+        + [arg for prop in KONSOLE_PROFILE for arg in ("-p", prop)],
+    ),
     ("foot", ["--fullscreen", "--font=monospace:size=15"]),
     ("alacritty", ["--option", "window.startup_mode='Fullscreen'", "--option", "font.size=15", "-e"]),
     ("kitty", ["--start-as=fullscreen", "-o", "font_size=15"]),
     ("xterm", ["-fullscreen", "-fa", "Monospace", "-fs", "15", "-e"]),
 ]
+
+# A Konsole colour scheme with the TUI's background, so the margins around the
+# text blend in. ANSI colours follow Breeze; the TUI itself uses true colour.
+KONSOLE_SCHEME = """[General]
+Description=rommate
+Opacity=1
+
+[Background]
+Color=22,22,30
+[BackgroundIntense]
+Color=22,22,30
+[BackgroundFaint]
+Color=22,22,30
+[Foreground]
+Color=230,230,240
+[ForegroundIntense]
+Color=255,255,255
+[ForegroundFaint]
+Color=124,124,140
+[Color0]
+Color=35,38,39
+[Color0Intense]
+Color=127,140,141
+[Color1]
+Color=237,21,21
+[Color1Intense]
+Color=192,57,43
+[Color2]
+Color=17,209,22
+[Color2Intense]
+Color=28,220,154
+[Color3]
+Color=246,116,0
+[Color3Intense]
+Color=253,188,75
+[Color4]
+Color=29,153,243
+[Color4Intense]
+Color=61,174,233
+[Color5]
+Color=155,89,182
+[Color5Intense]
+Color=142,68,173
+[Color6]
+Color=26,188,156
+[Color6Intense]
+Color=22,160,133
+[Color7]
+Color=252,252,252
+[Color7Intense]
+Color=255,255,255
+"""
+
+
+def install_konsole_scheme() -> bool:
+    """Write the rommate colour scheme for the Decky user. Returns whether it
+    is available."""
+    home = decky.DECKY_USER_HOME
+    folder = os.path.join(home, ".local", "share", "konsole")
+    path = os.path.join(folder, "rommate.colorscheme")
+    try:
+        os.makedirs(folder, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(KONSOLE_SCHEME)
+        if os.geteuid() == 0:
+            # The loader may run as root; keep the user's files theirs.
+            st = os.stat(home)
+            for p in (os.path.join(home, ".local"), os.path.join(home, ".local", "share"), folder, path):
+                os.chown(p, st.st_uid, st.st_gid)
+        return True
+    except OSError as e:
+        decky.logger.warning("could not write Konsole colour scheme: %s", e)
+        return False
+
 
 class RommateError(Exception):
     """rommate exited with an error; the message is its stderr."""
@@ -253,6 +340,10 @@ class Plugin:
         for name, args in TERMINALS:
             exe = shutil.which(name)
             if exe:
+                if name == "konsole" and install_konsole_scheme():
+                    args = [*args, "-p", "ColorScheme=rommate"]
+                if name == "konsole":
+                    args = [*args, "-e"]
                 return ok(
                     {
                         "name": "rommate",
