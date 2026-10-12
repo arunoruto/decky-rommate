@@ -182,6 +182,9 @@ importers:
       '@decky/ui':
         specifier: ^4.11.0
         version: 4.12.1
+      '@rollup/rollup-linux-x64-musl':
+        specifier: ^4.53.3
+        version: 4.64.5
       '@types/react':
         specifier: 19.1.1
         version: 19.1.1
@@ -994,8 +997,7 @@ snapshots:
   '@rollup/rollup-linux-x64-gnu@4.64.5':
     optional: true
 
-  '@rollup/rollup-linux-x64-musl@4.64.5':
-    optional: true
+  '@rollup/rollup-linux-x64-musl@4.64.5': {}
 
   '@rollup/rollup-openbsd-x64@4.64.5':
     optional: true
