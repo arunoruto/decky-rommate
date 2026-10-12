@@ -15,6 +15,8 @@ import asyncio
 import json
 import os
 import platform
+import shlex
+import shutil
 import signal
 import subprocess
 import time
@@ -23,6 +25,16 @@ import decky
 
 # How many finished/failed downloads to remember for the UI.
 HISTORY = 20
+
+# Terminals that can host the TUI, with arguments for a full-screen window
+# running one command. Konsole ships with SteamOS and Armada.
+TERMINALS = [
+    ("konsole", ["--fullscreen", "--hide-menubar", "--hide-tabbar", "-p", "Font=Monospace,15", "-e"]),
+    ("foot", ["--fullscreen", "--font=monospace:size=15"]),
+    ("alacritty", ["--option", "window.startup_mode='Fullscreen'", "--option", "font.size=15", "-e"]),
+    ("kitty", ["--start-as=fullscreen", "-o", "font_size=15"]),
+    ("xterm", ["-fullscreen", "-fa", "Monospace", "-fs", "15", "-e"]),
+]
 
 class RommateError(Exception):
     """rommate exited with an error; the message is its stderr."""
@@ -228,6 +240,50 @@ class Plugin:
             return ok()
         except Exception as e:  # noqa: BLE001
             return fail(e)
+
+    # ── launching the TUI ────────────────────────────────────────────────────
+
+    async def get_launch(self) -> dict:
+        """How to start the TUI from a Steam shortcut, plus the shortcut's app
+        id if one was created before."""
+        try:
+            rommate = binary_path()
+        except Exception as e:  # noqa: BLE001
+            return fail(e)
+        for name, args in TERMINALS:
+            exe = shutil.which(name)
+            if exe:
+                return ok(
+                    {
+                        "name": "rommate",
+                        "exe": exe,
+                        "start_dir": decky.DECKY_USER_HOME,
+                        "launch_options": " ".join(shlex.quote(a) for a in [*args, rommate]),
+                        "appid": self._settings().get("shortcut_appid"),
+                    }
+                )
+        return fail(RommateError("no terminal found (install Konsole or another terminal)"))
+
+    async def set_shortcut_appid(self, appid: int) -> dict:
+        settings = self._settings()
+        settings["shortcut_appid"] = appid
+        self._save_settings(settings)
+        return ok()
+
+    def _settings_path(self) -> str:
+        return os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json")
+
+    def _settings(self) -> dict:
+        try:
+            with open(self._settings_path(), encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, ValueError):
+            return {}
+
+    def _save_settings(self, settings: dict):
+        os.makedirs(decky.DECKY_PLUGIN_SETTINGS_DIR, exist_ok=True)
+        with open(self._settings_path(), "w", encoding="utf-8") as f:
+            json.dump(settings, f)
 
     # ── download queue ───────────────────────────────────────────────────────
 

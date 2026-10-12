@@ -55,6 +55,16 @@ export interface Queue {
   finished: QueueItem[];
 }
 
+export interface Launch {
+  name: string;
+  exe: string;
+  start_dir: string;
+  launch_options: string;
+  appid: number | null;
+}
+
+export const getLaunch = callable<[], Result<Launch>>("get_launch");
+export const setShortcutAppid = callable<[appid: number], Result<null>>("set_shortcut_appid");
 export const getConfig = callable<[], Result<Config>>("get_config");
 export const setup = callable<
   [server: string, token: string, romDir: string, localServer: string],

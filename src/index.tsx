@@ -1,5 +1,6 @@
 import { ButtonItem, Field, PanelSection, PanelSectionRow, Spinner, staticClasses } from "@decky/ui";
 import { addEventListener, definePlugin, removeEventListener, toaster } from "@decky/api";
+import { launchRommate } from "./launch";
 import { useEffect, useState } from "react";
 import {
   Config,
@@ -75,8 +76,20 @@ function Content() {
     );
   }
 
+  const openTui = async () => {
+    const error = await launchRommate();
+    if (error) toaster.toast({ title: "rommate could not open", body: error });
+  };
+
   return (
     <>
+      <PanelSection>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={openTui}>
+            Open rommate
+          </ButtonItem>
+        </PanelSectionRow>
+      </PanelSection>
       <Downloads queue={queue} onQueue={setQueue} />
       {view.kind === "games" ? (
         <Games
