@@ -1,0 +1,11 @@
+{
+  "name": "rommate",
+  "author": "arunoruto",
+  "flags": [],
+  "api_version": 1,
+  "publish": {
+    "tags": ["romm", "roms", "emulation", "downloads"],
+    "description": "Browse your RomM server and download games straight into the folders ES-DE, EmuDeck and RetroDECK expect. Works on the Steam Deck and on ARM handhelds.",
+    "image": "https://raw.githubusercontent.com/arunoruto/rommate/main/assets/social-preview.png"
+  }
+}

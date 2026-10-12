@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DECKY_CLI_VERSION: "0.0.8"
+
+jobs:
+  build:
+    name: Check and build the plugin zip
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - uses: pnpm/action-setup@v6
+
+      - name: Type-check frontend
+        run: |
+          pnpm install
+          pnpm run typecheck
+
+      - name: Lint backend
+        run: |
+          python3 -m py_compile main.py
+          pipx run ruff check --select E,F,B,UP --ignore E501,UP041 --target-version py39 main.py
+
+      - name: Build plugin zip with the Decky CLI
+        run: |
+          mkdir -p cli out
+          curl -fsSL -o cli/decky "https://github.com/SteamDeckHomebrew/cli/releases/download/${DECKY_CLI_VERSION}/decky-linux-x86_64"
+          chmod +x cli/decky
+          sudo cli/decky plugin build -b -o out -s directory .
+          sudo chown -R "$(whoami)" out
+          unzip -l out/*.zip
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rommate-decky-plugin
+          path: out/*.zip
+          retention-days: 14

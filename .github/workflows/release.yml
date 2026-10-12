@@ -1,0 +1,64 @@
+name: Release
+
+# Publishes the plugin zip for the version in package.json. Bump the version,
+# commit, then run this workflow (Actions tab or `gh workflow run release.yml`).
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  DECKY_CLI_VERSION: "0.0.8"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Read version
+        id: version
+        run: |
+          tag="v$(jq -r .version package.json)"
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "::error::$tag already exists; bump version in package.json first"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - uses: pnpm/action-setup@v6
+
+      - name: Build plugin zip with the Decky CLI
+        run: |
+          pnpm install
+          pnpm run typecheck
+          mkdir -p cli out
+          curl -fsSL -o cli/decky "https://github.com/SteamDeckHomebrew/cli/releases/download/${DECKY_CLI_VERSION}/decky-linux-x86_64"
+          chmod +x cli/decky
+          sudo cli/decky plugin build -b -o out -s directory .
+          sudo chown -R "$(whoami)" out
+          mv out/*.zip out/rommate.zip
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh release create "$TAG" out/rommate.zip \
+            --title "$TAG" \
+            --generate-notes \
+            --target "$GITHUB_SHA"
