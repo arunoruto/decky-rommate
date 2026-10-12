@@ -32,13 +32,13 @@
   "remote_binary": [
     {
       "name": "rommate-linux-amd64",
-      "url": "https://github.com/arunoruto/rommate/releases/download/v0.6.0/rommate-linux-amd64",
-      "sha256hash": "ace3087ea29dc8d4fbcc023f56d2745c243ce1064dee33d3bb736242c92102d3"
+      "url": "https://github.com/arunoruto/rommate/releases/download/v0.7.0/rommate-linux-amd64",
+      "sha256hash": "e7462007aed79e24bb0533984893bc97aa3070d2c42526603c2d955dc866b777"
     },
     {
       "name": "rommate-linux-arm64",
-      "url": "https://github.com/arunoruto/rommate/releases/download/v0.6.0/rommate-linux-arm64",
-      "sha256hash": "ae4e3d004b273eec9e2c7b5248f379fe89c465596a9854f1c448a6bf764e68ea"
+      "url": "https://github.com/arunoruto/rommate/releases/download/v0.7.0/rommate-linux-arm64",
+      "sha256hash": "ea6f43dfebce9a675e0080a5beaa6104e8bc9b8d51a1d1ae2d0bb0059d9990f7"
     }
   ],
   "devDependencies": {
