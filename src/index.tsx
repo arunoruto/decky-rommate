@@ -91,7 +91,14 @@ function Content() {
       )}
       <PanelSection title="Server">
         <PanelSectionRow>
-          <Field label={config.server} description={`Games go to ${config.rom_dir}`} />
+          <Field
+            label={config.server}
+            description={
+              config.local_server
+                ? `At home: ${config.local_server} · games go to ${config.rom_dir}`
+                : `Games go to ${config.rom_dir}`
+            }
+          />
         </PanelSectionRow>
         <PanelSectionRow>
           <ButtonItem layout="below" onClick={() => setView({ kind: "setup" })}>

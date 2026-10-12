@@ -130,10 +130,12 @@ class Plugin:
         except Exception as e:  # noqa: BLE001 - every failure goes to the UI
             return fail(e)
 
-    async def setup(self, server: str, token: str, rom_dir: str = "") -> dict:
+    async def setup(self, server: str, token: str, rom_dir: str = "", local_server: str = "") -> dict:
         args = ["init", "--server", server.strip()]
         if token.strip():
             args += ["--token", token.strip()]
+        if local_server.strip():
+            args += ["--local-server", local_server.strip()]
         if rom_dir.strip():
             args += ["--rom-dir", rom_dir.strip()]
         try:
@@ -152,7 +154,7 @@ class Plugin:
             return fail(e)
         counts: dict[str, int] = {}
         for entry in status or []:
-            slug = entry.get("platform_slug") or entry.get("PlatformSlug") or ""
+            slug = entry.get("platform_slug", "")
             if entry.get("present", True):
                 counts[slug] = counts.get(slug, 0) + 1
         return ok(

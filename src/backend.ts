@@ -8,6 +8,7 @@ export interface Config {
   problem?: string;
   config_path: string;
   server: string;
+  local_server?: string;
   token_set: boolean;
   profile: string;
   rom_dir: string;
@@ -55,7 +56,10 @@ export interface Queue {
 }
 
 export const getConfig = callable<[], Result<Config>>("get_config");
-export const setup = callable<[server: string, token: string, romDir: string], Result<Config>>("setup");
+export const setup = callable<
+  [server: string, token: string, romDir: string, localServer: string],
+  Result<Config>
+>("setup");
 export const getPlatforms = callable<[], Result<Platform[]>>("get_platforms");
 export const getGames = callable<[platformId: number], Result<Game[]>>("get_games");
 export const removeGame = callable<[romId: number], Result<null>>("remove_game");

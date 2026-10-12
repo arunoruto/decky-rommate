@@ -8,13 +8,14 @@ export function Setup({ config, onDone }: { config: Config | null; onDone: (c: C
   const [server, setServer] = useState(config?.server ?? "");
   const [token, setToken] = useState("");
   const [romDir, setRomDir] = useState("");
+  const [localServer, setLocalServer] = useState(config?.local_server ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   const connect = async () => {
     setBusy(true);
     setError("");
-    const res = await setup(server, token, romDir);
+    const res = await setup(server, token, romDir, localServer);
     setBusy(false);
     if (res.ok) onDone(res.data);
     else setError(res.error);
@@ -43,6 +44,14 @@ export function Setup({ config, onDone }: { config: Config | null; onDone: (c: C
           bIsPassword
           value={token}
           onChange={(e) => setToken(e.target.value)}
+        />
+      </PanelSectionRow>
+      <PanelSectionRow>
+        <TextField
+          label="Local address (optional)"
+          description="Used at home when it answers, e.g. http://romm.local:8080"
+          value={localServer}
+          onChange={(e) => setLocalServer(e.target.value)}
         />
       </PanelSectionRow>
       <PanelSectionRow>
