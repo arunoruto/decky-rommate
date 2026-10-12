@@ -16,6 +16,7 @@ import json
 import os
 import platform
 import signal
+import subprocess
 import time
 
 import decky
@@ -23,23 +24,66 @@ import decky
 # How many finished/failed downloads to remember for the UI.
 HISTORY = 20
 
-ARCHES = {"x86_64": "amd64", "amd64": "amd64", "aarch64": "arm64", "arm64": "arm64"}
-
-
 class RommateError(Exception):
     """rommate exited with an error; the message is its stderr."""
 
 
+ARCHES = {"x86_64": "amd64", "amd64": "amd64", "aarch64": "arm64", "arm64": "arm64"}
+
+# The binary that works on this device, found once by binary_path().
+_binary: str | None = None
+
+
+def native_arch() -> str:
+    """The CPU's real architecture.
+
+    On ARM handhelds running Armada, Decky itself is an x86 program emulated by
+    FEX, so platform.machine() reports x86_64 even though the CPU is ARM (and
+    the x86 rommate binary crashes under FEX). FEX leaves two tells: its
+    binfmt_misc registration and the real CPU in /proc/cpuinfo.
+    """
+    machine = ARCHES.get(platform.machine().lower(), "amd64")
+    if machine == "arm64":
+        return "arm64"
+    if os.path.exists("/proc/sys/fs/binfmt_misc/FEX-x86_64"):
+        return "arm64"
+    try:
+        with open("/proc/cpuinfo", encoding="utf-8", errors="replace") as f:
+            cpuinfo = f.read(8192)
+        if "CPU implementer" in cpuinfo or "Cortex-" in cpuinfo or "Oryon" in cpuinfo:
+            return "arm64"
+    except OSError:
+        pass
+    return machine
+
+
 def binary_path() -> str:
-    arch = ARCHES.get(platform.machine().lower())
-    if arch is None:
-        raise RommateError(f"unsupported CPU architecture: {platform.machine()}")
-    path = os.path.join(decky.DECKY_PLUGIN_DIR, "bin", f"rommate-linux-{arch}")
-    if not os.path.exists(path):
-        raise RommateError(f"rommate binary missing: {path}")
-    if not os.access(path, os.X_OK):
-        os.chmod(path, 0o755)
-    return path
+    """Path of a rommate binary that runs here: the native one if it works,
+    otherwise the other architecture."""
+    global _binary
+    if _binary:
+        return _binary
+    preferred = native_arch()
+    order = [preferred] + [a for a in ("arm64", "amd64") if a != preferred]
+    errors = []
+    for arch in order:
+        path = os.path.join(decky.DECKY_PLUGIN_DIR, "bin", f"rommate-linux-{arch}")
+        if not os.path.exists(path):
+            errors.append(f"{arch}: missing")
+            continue
+        if not os.access(path, os.X_OK):
+            os.chmod(path, 0o755)
+        try:
+            proc = subprocess.run([path, "version"], capture_output=True, timeout=15, env=rommate_env())
+        except (OSError, subprocess.SubprocessError) as e:
+            errors.append(f"{arch}: {e}")
+            continue
+        if proc.returncode == 0:
+            decky.logger.info("using %s (%s)", path, proc.stdout.decode(errors="replace").strip())
+            _binary = path
+            return path
+        errors.append(f"{arch}: exit {proc.returncode}")
+    raise RommateError("no rommate binary runs on this device (" + "; ".join(errors) + ")")
 
 
 def rommate_env() -> dict:
@@ -112,7 +156,7 @@ class Plugin:
         self.finished: list[dict] = []
         self.wakeup = asyncio.Event()
         self.worker = asyncio.get_event_loop().create_task(self._worker())
-        decky.logger.info("rommate plugin started (%s)", platform.machine())
+        decky.logger.info("rommate plugin started (reported %s, native %s)", platform.machine(), native_arch())
 
     async def _unload(self):
         self.pending = []
